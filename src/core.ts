@@ -7,8 +7,22 @@ export interface CompletedTask {
 
 export interface GateWarning {
   line: number;
-  message: string;
+  code: GateWarningCode;
+  value?: string;
 }
+
+export type GateWarningCode =
+  | "empty-condition"
+  | "duplicate-condition"
+  | "invalid-weekday"
+  | "invalid-nth"
+  | "invalid-day-from"
+  | "invalid-day-until"
+  | "invalid-condition"
+  | "nth-requires-weekday"
+  | "scope-requires-until-done"
+  | "invalid-day-range"
+  | "comment-outside-task";
 
 export interface ProcessOptions {
   keepComments: boolean;
@@ -42,7 +56,7 @@ interface GateRule {
 
 interface ParsedRule {
   rule?: GateRule;
-  error?: string;
+  error?: Omit<GateWarning, "line">;
 }
 
 const GATE_COMMENT = /<!--\s*dtg:\s*(.*?)\s*-->/gi;
@@ -84,7 +98,7 @@ function parseRule(source: string): ParsedRule {
   const clauses = source.split(";").map((clause) => clause.trim()).filter(Boolean);
 
   if (clauses.length === 0) {
-    return { error: "条件が空です" };
+    return { error: { code: "empty-condition" } };
   }
 
   for (const clause of clauses) {
@@ -93,7 +107,7 @@ function parseRule(source: string): ParsedRule {
     const value = separator === -1 ? undefined : clause.slice(separator + 1).trim().toLowerCase();
 
     if (seen.has(key)) {
-      return { error: `条件 ${key} が重複しています` };
+      return { error: { code: "duplicate-condition", value: key } };
     }
     seen.add(key);
 
@@ -106,42 +120,42 @@ function parseRule(source: string): ParsedRule {
     } else if (key === "weekday" && value !== undefined) {
       const weekdayNames = value.split(",").map((part) => part.trim());
       if (weekdayNames.length === 0 || weekdayNames.some((name) => WEEKDAYS[name] === undefined)) {
-        return { error: `weekday の値が不正です: ${value}` };
+        return { error: { code: "invalid-weekday", value } };
       }
       rule.weekdays = [...new Set(weekdayNames.map((name) => WEEKDAYS[name]!))];
     } else if (key === "nth" && value !== undefined) {
       const parsed = parseIntegerList(value, 1, 5);
       if (!parsed) {
-        return { error: `nth の値が不正です: ${value}` };
+        return { error: { code: "invalid-nth", value } };
       }
       rule.nth = parsed;
     } else if (key === "day-from" && value !== undefined) {
       const parsed = parseIntegerList(value, 1, 31);
       if (!parsed || parsed.length !== 1) {
-        return { error: `day-from の値が不正です: ${value}` };
+        return { error: { code: "invalid-day-from", value } };
       }
       rule.dayFrom = parsed[0];
     } else if (key === "day-until" && value !== undefined) {
       const parsed = parseIntegerList(value, 1, 31);
       if (!parsed || parsed.length !== 1) {
-        return { error: `day-until の値が不正です: ${value}` };
+        return { error: { code: "invalid-day-until", value } };
       }
       rule.dayUntil = parsed[0];
     } else if (key === "scope" && (value === "month" || value === "all")) {
       rule.scope = value;
     } else {
-      return { error: `未対応または不正な条件です: ${clause}` };
+      return { error: { code: "invalid-condition", value: clause } };
     }
   }
 
   if (rule.nth && !rule.weekdays) {
-    return { error: "nth には weekday の指定が必要です" };
+    return { error: { code: "nth-requires-weekday" } };
   }
   if (seen.has("scope") && !rule.untilDone) {
-    return { error: "scope には until-done の指定が必要です" };
+    return { error: { code: "scope-requires-until-done" } };
   }
   if (rule.dayFrom !== undefined && rule.dayUntil !== undefined && rule.dayFrom > rule.dayUntil) {
-    return { error: "day-from は day-until 以下にしてください" };
+    return { error: { code: "invalid-day-range" } };
   }
 
   return { rule };
@@ -250,14 +264,14 @@ export function processTemplate(
 
     const taskText = getTaskIdentity(line);
     if (taskText === undefined) {
-      warnings.push({ line: index + 1, message: "dtg コメントがタスク行の外にあります" });
+      warnings.push({ line: index + 1, code: "comment-outside-task" });
       lines.push({ rendered: line, included: true, isTask: false, isGatedTask: false, headingLevel });
       return;
     }
 
     const parsed = parseRule(comments.map((comment) => comment[1] ?? "").join(";"));
     if (!parsed.rule) {
-      warnings.push({ line: index + 1, message: parsed.error ?? "条件を解釈できません" });
+      warnings.push({ line: index + 1, ...(parsed.error ?? { code: "invalid-condition" }) });
       lines.push({ rendered: line, included: true, isTask: true, isGatedTask: true });
       return;
     }

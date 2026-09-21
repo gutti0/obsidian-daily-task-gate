@@ -2,6 +2,7 @@ import {
   App,
   Component,
   Editor,
+  getLanguage,
   MarkdownRenderer,
   Modal,
   moment,
@@ -14,9 +15,11 @@ import {
 } from "obsidian";
 import {
   collectCompletedTasks,
-  CompletedTask,
   processTemplate,
 } from "./core";
+import type { CompletedTask, GateWarning } from "./core";
+import { getStrings, localizeWarning } from "./i18n";
+import type { Strings } from "./i18n";
 
 interface DailyTaskGateSettings {
   keepComments: boolean;
@@ -62,25 +65,27 @@ const createMoment = moment as unknown as {
 
 export default class DailyTaskGatePlugin extends Plugin {
   override settings: DailyTaskGateSettings = DEFAULT_SETTINGS;
+  readonly language = getLanguage();
+  readonly strings = getStrings(this.language);
 
   override async onload(): Promise<void> {
     await this.loadSettings();
 
     this.addCommand({
       id: "open-todays-daily-note",
-      name: "Open today's daily note",
+      name: this.strings.commands.openToday,
       callback: () => this.openTodaysDailyNote(),
     });
 
     this.addCommand({
       id: "insert-todays-tasks",
-      name: "Insert today's tasks",
+      name: this.strings.commands.insertToday,
       editorCallback: (editor: Editor) => this.insertTodaysTasks(editor),
     });
 
     this.addCommand({
       id: "preview-todays-tasks",
-      name: "Preview today's tasks",
+      name: this.strings.commands.previewToday,
       callback: () => this.previewTodaysTasks(),
     });
 
@@ -99,7 +104,7 @@ export default class DailyTaskGatePlugin extends Plugin {
         return;
       }
       if (existing) {
-        throw new Error(`Daily Note の保存先がファイルとして使用できません: ${notePath}`);
+        throw new Error(this.strings.errors.unusableDailyPath(notePath));
       }
 
       const template = await this.readTemplate(daily.template);
@@ -112,7 +117,7 @@ export default class DailyTaskGatePlugin extends Plugin {
       const created = await this.app.vault.create(notePath, result.content);
       await this.app.workspace.getLeaf(false).openFile(created);
     } catch (error) {
-      this.reportError("今日の Daily Note を開けませんでした", error);
+      this.reportError(this.strings.errors.openDaily, error);
     }
   }
 
@@ -128,13 +133,13 @@ export default class DailyTaskGatePlugin extends Plugin {
       this.showWarnings(result.warnings);
 
       if (result.includedTaskCount === 0) {
-        new Notice("Daily Task Gate: 今日挿入するタスクはありません");
+        new Notice(this.strings.notices.noTasks);
         return;
       }
 
       editor.replaceSelection(result.insertionContent);
     } catch (error) {
-      this.reportError("今日のタスクを挿入できませんでした", error);
+      this.reportError(this.strings.errors.insertTasks, error);
     }
   }
 
@@ -155,16 +160,17 @@ export default class DailyTaskGatePlugin extends Plugin {
         result.insertionContent,
         result.includedTaskCount,
         daily.template ?? "",
+        this.strings,
       ).open();
     } catch (error) {
-      this.reportError("今日のタスクをプレビューできませんでした", error);
+      this.reportError(this.strings.errors.previewTasks, error);
     }
   }
 
   private getDailyNotesOptions(): DailyNotesOptions {
     const dailyNotes = (this.app as AppWithInternalPlugins).internalPlugins.getPluginById("daily-notes");
     if (!dailyNotes?.enabled) {
-      throw new Error("コアプラグイン Daily Notes を有効にしてください");
+      throw new Error(this.strings.errors.dailyNotesDisabled);
     }
     return dailyNotes.instance?.options ?? {};
   }
@@ -181,7 +187,7 @@ export default class DailyTaskGatePlugin extends Plugin {
     const normalized = normalizePath(templatePath.toLowerCase().endsWith(".md") ? templatePath : `${templatePath}.md`);
     const file = this.app.vault.getAbstractFileByPath(normalized);
     if (!(file instanceof TFile)) {
-      throw new Error(`Daily Notes テンプレートが見つかりません: ${normalized}`);
+      throw new Error(this.strings.errors.templateMissing(normalized));
     }
     return this.app.vault.cachedRead(file);
   }
@@ -226,11 +232,12 @@ export default class DailyTaskGatePlugin extends Plugin {
     }
   }
 
-  private showWarnings(warnings: readonly { line: number; message: string }[]): void {
+  private showWarnings(warnings: readonly GateWarning[]): void {
     if (warnings.length === 0) return;
     const first = warnings[0]!;
-    const suffix = warnings.length > 1 ? `（ほか ${warnings.length - 1} 件）` : "";
-    new Notice(`Daily Task Gate: テンプレート ${first.line} 行目: ${first.message}${suffix}`, 8000);
+    const suffix = warnings.length > 1 ? this.strings.notices.moreWarnings(warnings.length - 1) : "";
+    const lineLabel = this.language.toLowerCase().startsWith("ja") ? `${first.line} 行目` : `line ${first.line}`;
+    new Notice(`${this.strings.notices.warningPrefix} ${lineLabel}: ${localizeWarning(first, this.language)}${suffix}`, 8000);
     console.warn("Daily Task Gate template warnings", warnings);
   }
 
@@ -256,15 +263,43 @@ class DailyTaskGateSettingTab extends PluginSettingTab {
 
   override display(): void {
     this.containerEl.empty();
+    const strings = this.plugin.strings.settings;
     new Setting(this.containerEl)
-      .setName("Keep Task Gate comments")
-      .setDesc("Keep <!-- dtg: ... --> comments in created or inserted tasks.")
+      .setName(strings.keepCommentsName)
+      .setDesc(strings.keepCommentsDescription)
       .addToggle((toggle) => toggle
         .setValue(this.plugin.settings.keepComments)
         .onChange(async (value) => {
           this.plugin.settings.keepComments = value;
           await this.plugin.saveSettings();
         }));
+
+    new Setting(this.containerEl)
+      .setName(strings.rulesHeading)
+      .setHeading();
+    this.containerEl.createEl("p", { text: strings.rulesIntroduction });
+
+    const tableWrapper = this.containerEl.createDiv({ cls: "daily-task-gate-rule-table-wrapper" });
+    const table = tableWrapper.createEl("table", { cls: "daily-task-gate-rule-table" });
+    const header = table.createEl("thead").createEl("tr");
+    header.createEl("th", { text: strings.syntaxColumn });
+    header.createEl("th", { text: strings.descriptionColumn });
+    header.createEl("th", { text: strings.exampleColumn });
+    const body = table.createEl("tbody");
+    strings.references.forEach((reference) => {
+      const row = body.createEl("tr");
+      row.createEl("td").createEl("code", { text: reference.syntax });
+      row.createEl("td", { text: reference.description });
+      row.createEl("td").createEl("code", { text: reference.example });
+    });
+
+    this.containerEl.createEl("p", {
+      cls: "daily-task-gate-rule-note",
+      text: strings.andNote,
+    });
+    this.containerEl.createEl("h4", { text: strings.fullExampleHeading });
+    this.containerEl.createEl("pre", { cls: "daily-task-gate-rule-example" })
+      .createEl("code", { text: strings.fullExample });
   }
 }
 
@@ -277,6 +312,7 @@ class TaskPreviewModal extends Modal {
     private readonly markdown: string,
     private readonly taskCount: number,
     private readonly sourcePath: string,
+    private readonly strings: Strings,
   ) {
     super(app);
   }
@@ -284,23 +320,27 @@ class TaskPreviewModal extends Modal {
   override async onOpen(): Promise<void> {
     this.renderer.load();
     this.modalEl.addClass("daily-task-gate-preview-modal");
-    this.setTitle(`Today's tasks — ${this.dateLabel}`);
+    this.setTitle(this.strings.preview.title(this.dateLabel));
     this.contentEl.empty();
     this.contentEl.createEl("p", {
       cls: "daily-task-gate-preview-summary",
-      text: `${this.taskCount} matching task${this.taskCount === 1 ? "" : "s"}`,
+      text: this.strings.preview.taskCount(this.taskCount),
     });
 
     if (!this.markdown.trim()) {
       this.contentEl.createEl("p", {
         cls: "daily-task-gate-preview-empty",
-        text: "No tasks match today's conditions.",
+        text: this.strings.preview.empty,
       });
       return;
     }
 
     const preview = this.contentEl.createDiv({ cls: "daily-task-gate-preview markdown-rendered" });
     await MarkdownRenderer.render(this.app, this.markdown, preview, this.sourcePath, this.renderer);
+    preview.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.tabIndex = -1;
+      checkbox.setAttribute("aria-disabled", "true");
+    });
   }
 
   override onClose(): void {

@@ -62,12 +62,12 @@ describe("template processing", () => {
     const task = "- [ ] safe <!-- dtg: weekday=monday -->";
     const result = render(task, localDate(2026, 9, 21));
     expect(result.content).toBe(task);
-    expect(result.warnings).toEqual([{ line: 1, message: "weekday の値が不正です: monday" }]);
+    expect(result.warnings).toEqual([{ line: 1, code: "invalid-weekday", value: "monday" }]);
   });
 
   it("requires weekday when nth is used", () => {
     const task = "- [ ] safe <!-- dtg: nth=1 -->";
-    expect(render(task, localDate(2026, 9, 1)).warnings[0]?.message).toContain("weekday");
+    expect(render(task, localDate(2026, 9, 1)).warnings[0]?.code).toBe("nth-requires-weekday");
   });
 
   it("extracts only matching gated tasks for manual insertion", () => {

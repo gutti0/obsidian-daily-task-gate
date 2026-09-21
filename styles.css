@@ -21,3 +21,36 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+.daily-task-gate-rule-table-wrapper {
+  overflow-x: auto;
+}
+
+.daily-task-gate-rule-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.daily-task-gate-rule-table th,
+.daily-task-gate-rule-table td {
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding: var(--size-4-2);
+  text-align: start;
+  vertical-align: top;
+}
+
+.daily-task-gate-rule-table th:first-child,
+.daily-task-gate-rule-table td:first-child,
+.daily-task-gate-rule-table th:last-child,
+.daily-task-gate-rule-table td:last-child {
+  white-space: nowrap;
+}
+
+.daily-task-gate-rule-note {
+  color: var(--text-muted);
+}
+
+.daily-task-gate-rule-example {
+  overflow-x: auto;
+  padding: var(--size-4-3);
+}
