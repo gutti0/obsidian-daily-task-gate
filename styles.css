@@ -1,0 +1,23 @@
+.daily-task-gate-preview-modal {
+  width: min(720px, 90vw);
+}
+
+.daily-task-gate-preview-summary {
+  color: var(--text-muted);
+  margin-top: 0;
+}
+
+.daily-task-gate-preview {
+  max-height: min(65vh, 720px);
+  overflow: auto;
+  padding: 0 var(--size-4-2) var(--size-4-2);
+}
+
+.daily-task-gate-preview input[type="checkbox"] {
+  pointer-events: none;
+}
+
+.daily-task-gate-preview-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}

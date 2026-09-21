@@ -1,6 +1,6 @@
 {
   "name": "obsidian-daily-task-gate",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Conditionally include tasks when creating an Obsidian daily note.",
   "main": "main.js",
   "type": "module",
@@ -25,4 +25,3 @@
     "vitest": "^5.0.1"
   }
 }
-

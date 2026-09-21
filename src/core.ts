@@ -16,8 +16,17 @@ export interface ProcessOptions {
 
 export interface ProcessResult {
   content: string;
-  tasks: string[];
+  insertionContent: string;
+  includedTaskCount: number;
   warnings: GateWarning[];
+}
+
+interface ProcessedLine {
+  rendered: string;
+  included: boolean;
+  isTask: boolean;
+  isGatedTask: boolean;
+  headingLevel?: number;
 }
 
 interface GateRule {
@@ -38,6 +47,8 @@ interface ParsedRule {
 
 const GATE_COMMENT = /<!--\s*dtg:\s*(.*?)\s*-->/gi;
 const TASK_LINE = /^(\s*(?:[-*+]|\d+[.)])\s+\[([^\]])\]\s+)(.*)$/;
+const ATX_HEADING = /^\s{0,3}(#{1,6})(?:[ \t]+|$)/;
+const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const WEEKDAYS: Readonly<Record<string, number>> = {
   sun: 0,
   mon: 1,
@@ -204,41 +215,116 @@ export function processTemplate(
   options: ProcessOptions,
 ): ProcessResult {
   const newline = content.includes("\r\n") ? "\r\n" : "\n";
-  const output: string[] = [];
-  const tasks: string[] = [];
+  const lines: ProcessedLine[] = [];
   const warnings: GateWarning[] = [];
+  let activeFence: { character: string; length: number } | undefined;
 
   content.split(/\r?\n/).forEach((line, index) => {
+    const fence = line.match(FENCE)?.[1];
+    if (activeFence) {
+      const closingFence = line.match(/^\s{0,3}(`{3,}|~{3,})[ \t]*$/)?.[1];
+      lines.push({ rendered: line, included: true, isTask: false, isGatedTask: false });
+      if (closingFence?.[0] === activeFence.character && closingFence.length >= activeFence.length) {
+        activeFence = undefined;
+      }
+      return;
+    }
+    if (fence) {
+      activeFence = { character: fence[0]!, length: fence.length };
+      lines.push({ rendered: line, included: true, isTask: false, isGatedTask: false });
+      return;
+    }
+
+    const headingLevel = line.match(ATX_HEADING)?.[1]?.length;
     const comments = [...line.matchAll(GATE_COMMENT)];
     if (comments.length === 0) {
-      output.push(line);
+      lines.push({
+        rendered: line,
+        included: true,
+        isTask: TASK_LINE.test(line),
+        isGatedTask: false,
+        headingLevel,
+      });
       return;
     }
 
     const taskText = getTaskIdentity(line);
     if (taskText === undefined) {
       warnings.push({ line: index + 1, message: "dtg コメントがタスク行の外にあります" });
-      output.push(line);
+      lines.push({ rendered: line, included: true, isTask: false, isGatedTask: false, headingLevel });
       return;
     }
 
     const parsed = parseRule(comments.map((comment) => comment[1] ?? "").join(";"));
     if (!parsed.rule) {
       warnings.push({ line: index + 1, message: parsed.error ?? "条件を解釈できません" });
-      output.push(line);
-      tasks.push(line);
+      lines.push({ rendered: line, included: true, isTask: true, isGatedTask: true });
       return;
     }
-
-    if (!matchesRule(parsed.rule, taskText, date, completedTasks)) return;
 
     const included = options.keepComments
       ? line
       : line.replace(GATE_COMMENT, "").replace(/[ \t]+$/u, "");
-    output.push(included);
-    tasks.push(included);
+    lines.push({
+      rendered: included,
+      included: matchesRule(parsed.rule, taskText, date, completedTasks),
+      isTask: true,
+      isGatedTask: true,
+    });
   });
 
-  return { content: output.join(newline), tasks, warnings };
+  pruneEmptyTaskHeadings(lines);
+  const insertionIndices = collectInsertionIndices(lines);
+  const insertionContent = lines
+    .filter((_line, index) => insertionIndices.has(index))
+    .map((line) => line.rendered)
+    .join(newline);
+
+  return {
+    content: lines.filter((line) => line.included).map((line) => line.rendered).join(newline),
+    insertionContent,
+    includedTaskCount: lines.filter((line) => line.isGatedTask && line.included).length,
+    warnings,
+  };
 }
 
+function pruneEmptyTaskHeadings(lines: ProcessedLine[]): void {
+  lines.forEach((line, index) => {
+    if (line.headingLevel === undefined) return;
+
+    let sectionEnd = lines.length;
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const candidateLevel = lines[cursor]?.headingLevel;
+      if (candidateLevel !== undefined && candidateLevel <= line.headingLevel) {
+        sectionEnd = cursor;
+        break;
+      }
+    }
+
+    const section = lines.slice(index + 1, sectionEnd);
+    const hadTasks = section.some((candidate) => candidate.isTask);
+    const hasIncludedTasks = section.some((candidate) => candidate.isTask && candidate.included);
+    if (hadTasks && !hasIncludedTasks) line.included = false;
+  });
+}
+
+function collectInsertionIndices(lines: readonly ProcessedLine[]): Set<number> {
+  const selected = new Set<number>();
+  const headingStack: Array<{ index: number; level: number }> = [];
+
+  lines.forEach((line, index) => {
+    if (line.headingLevel !== undefined) {
+      while (headingStack.length > 0 && headingStack[headingStack.length - 1]!.level >= line.headingLevel) {
+        headingStack.pop();
+      }
+      headingStack.push({ index, level: line.headingLevel });
+      return;
+    }
+
+    if (!line.isGatedTask || !line.included) return;
+    headingStack.forEach((heading) => selected.add(heading.index));
+    selected.add(index);
+  });
+
+  return selected;
+}

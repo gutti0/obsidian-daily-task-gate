@@ -77,7 +77,86 @@ describe("template processing", () => {
       "- [ ] monday <!-- dtg: weekday=mon -->",
       "- [ ] tuesday <!-- dtg: weekday=tue -->",
     ].join("\n");
-    expect(render(template, localDate(2026, 9, 21)).tasks).toEqual(["- [ ] monday"]);
+    expect(render(template, localDate(2026, 9, 21)).insertionContent).toBe("# Heading\n- [ ] monday");
+  });
+});
+
+describe("task headings", () => {
+  it("removes a heading when all tasks in its section are filtered", () => {
+    const template = [
+      "# Notes",
+      "Static text",
+      "# Monday",
+      "- [ ] keep <!-- dtg: weekday=mon -->",
+      "# Tuesday",
+      "- [ ] remove <!-- dtg: weekday=tue -->",
+    ].join("\n");
+
+    expect(render(template, localDate(2026, 9, 21)).content).toBe([
+      "# Notes",
+      "Static text",
+      "# Monday",
+      "- [ ] keep",
+    ].join("\n"));
+  });
+
+  it("preserves headings that only contain static template content", () => {
+    const template = "# Journal\nWrite anything here.\n## Ideas";
+    expect(render(template, localDate(2026, 9, 21)).content).toBe(template);
+  });
+
+  it("keeps the complete ancestor chain for a surviving nested task", () => {
+    const template = [
+      "# Parent",
+      "## Child",
+      "### Active",
+      "- [ ] keep <!-- dtg: weekday=mon -->",
+      "### Empty",
+      "- [ ] remove <!-- dtg: weekday=tue -->",
+      "## Empty branch",
+      "- [ ] remove too <!-- dtg: weekday=tue -->",
+    ].join("\n");
+    const result = render(template, localDate(2026, 9, 21));
+
+    expect(result.content).toBe([
+      "# Parent",
+      "## Child",
+      "### Active",
+      "- [ ] keep",
+    ].join("\n"));
+    expect(result.insertionContent).toBe([
+      "# Parent",
+      "## Child",
+      "### Active",
+      "- [ ] keep",
+    ].join("\n"));
+  });
+
+  it("removes an entire heading chain when no nested task survives", () => {
+    const template = "# Parent\n## Child\n### Grandchild\n- [ ] remove <!-- dtg: weekday=tue -->";
+    const result = render(template, localDate(2026, 9, 21));
+    expect(result.content).toBe("");
+    expect(result.insertionContent).toBe("");
+  });
+
+  it("keeps headings around normal tasks in generated notes but omits them from insertion", () => {
+    const template = "# Ordinary\n- [ ] normal";
+    const result = render(template, localDate(2026, 9, 21));
+    expect(result.content).toBe(template);
+    expect(result.insertionContent).toBe("");
+  });
+
+  it("does not interpret headings or tasks inside fenced code blocks", () => {
+    const template = [
+      "```markdown",
+      "# Example",
+      "- [ ] sample <!-- dtg: weekday=tue -->",
+      "```",
+    ].join("\n");
+    const result = render(template, localDate(2026, 9, 21));
+    expect(result.content).toBe(template);
+    expect(result.insertionContent).toBe("");
+    expect(result.warnings).toEqual([]);
   });
 });
 
@@ -118,4 +197,3 @@ describe("task identity", () => {
     expect(getTaskIdentity("- [x] credit card transfer")).toBe("credit card transfer");
   });
 });
-

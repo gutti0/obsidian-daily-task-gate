@@ -1,6 +1,9 @@
 import {
   App,
+  Component,
   Editor,
+  MarkdownRenderer,
+  Modal,
   moment,
   Notice,
   normalizePath,
@@ -75,6 +78,12 @@ export default class DailyTaskGatePlugin extends Plugin {
       editorCallback: (editor: Editor) => this.insertTodaysTasks(editor),
     });
 
+    this.addCommand({
+      id: "preview-todays-tasks",
+      name: "Preview today's tasks",
+      callback: () => this.previewTodaysTasks(),
+    });
+
     this.addSettingTab(new DailyTaskGateSettingTab(this.app, this));
   }
 
@@ -118,15 +127,37 @@ export default class DailyTaskGatePlugin extends Plugin {
       const result = processTemplate(resolved, date, completedTasks, this.settings);
       this.showWarnings(result.warnings);
 
-      if (result.tasks.length === 0) {
+      if (result.includedTaskCount === 0) {
         new Notice("Daily Task Gate: 今日挿入するタスクはありません");
         return;
       }
 
-      const newline = template.includes("\r\n") ? "\r\n" : "\n";
-      editor.replaceSelection(result.tasks.join(newline));
+      editor.replaceSelection(result.insertionContent);
     } catch (error) {
       this.reportError("今日のタスクを挿入できませんでした", error);
+    }
+  }
+
+  async previewTodaysTasks(): Promise<void> {
+    try {
+      const date = createMoment().toDate();
+      const daily = this.getDailyNotesOptions();
+      const notePath = this.getDailyNotePath(date, daily);
+      const template = await this.readTemplate(daily.template);
+      const resolved = this.resolveTemplateVariables(template, date, notePath);
+      const completedTasks = await this.loadCompletedTasks(date, daily);
+      const result = processTemplate(resolved, date, completedTasks, this.settings);
+      this.showWarnings(result.warnings);
+
+      new TaskPreviewModal(
+        this.app,
+        createMoment(date).format(DEFAULT_DATE_FORMAT),
+        result.insertionContent,
+        result.includedTaskCount,
+        daily.template ?? "",
+      ).open();
+    } catch (error) {
+      this.reportError("今日のタスクをプレビューできませんでした", error);
     }
   }
 
@@ -234,5 +265,46 @@ class DailyTaskGateSettingTab extends PluginSettingTab {
           this.plugin.settings.keepComments = value;
           await this.plugin.saveSettings();
         }));
+  }
+}
+
+class TaskPreviewModal extends Modal {
+  private readonly renderer = new Component();
+
+  constructor(
+    app: App,
+    private readonly dateLabel: string,
+    private readonly markdown: string,
+    private readonly taskCount: number,
+    private readonly sourcePath: string,
+  ) {
+    super(app);
+  }
+
+  override async onOpen(): Promise<void> {
+    this.renderer.load();
+    this.modalEl.addClass("daily-task-gate-preview-modal");
+    this.setTitle(`Today's tasks — ${this.dateLabel}`);
+    this.contentEl.empty();
+    this.contentEl.createEl("p", {
+      cls: "daily-task-gate-preview-summary",
+      text: `${this.taskCount} matching task${this.taskCount === 1 ? "" : "s"}`,
+    });
+
+    if (!this.markdown.trim()) {
+      this.contentEl.createEl("p", {
+        cls: "daily-task-gate-preview-empty",
+        text: "No tasks match today's conditions.",
+      });
+      return;
+    }
+
+    const preview = this.contentEl.createDiv({ cls: "daily-task-gate-preview markdown-rendered" });
+    await MarkdownRenderer.render(this.app, this.markdown, preview, this.sourcePath, this.renderer);
+  }
+
+  override onClose(): void {
+    this.renderer.unload();
+    this.contentEl.empty();
   }
 }

@@ -5,7 +5,8 @@ Daily Notes のテンプレートから、その日の条件に合うタスク�
 ## コマンド
 
 - `Daily Task Gate: Open today's daily note` は、今日のノートがあればそのまま開き、なければテンプレートを処理して作成します。
-- `Daily Task Gate: Insert today's tasks` は、現在のカーソル位置へ、条件に合う `dtg` 付きタスクだけを挿入します。
+- `Daily Task Gate: Insert today's tasks` は、現在のカーソル位置へ、条件に合う `dtg` 付きタスクとその見出し階層を挿入します。
+- `Daily Task Gate: Preview today's tasks` は、今日挿入されるタスクと見出し階層をモーダルで確認します。ノートは変更しません。
 
 保存先、日付形式、テンプレートは、コアプラグイン Daily Notes の設定を使います。Daily Notes を有効にしてから利用してください。
 
@@ -26,6 +27,12 @@ Daily Notes のテンプレートから、その日の条件に合うタスク�
 
 同名判定では、チェック状態、Task Gate コメント、前後の空白を除いた本文を完全一致で比較します。条件の書式に誤りがある行は、安全のため削除せず、通知と開発者コンソールへ警告を出します。
 
+## 見出し
+
+テンプレート上で配下にタスクを持つ見出しは、条件処理後にタスクが1件も残らなければ Daily Note から除外します。入れ子になった見出しは、子孫にタスクが残る限り祖先まで維持します。
+
+配下にタスクを一度も持たない見出しは、通常のテンプレート本文として常に残します。手動挿入とプレビューでは、条件に合う `dtg` 付きタスクと、その祖先見出しだけを表示します。
+
 ## 設定
 
 `Keep Task Gate comments` を有効にすると、生成後や挿入後も `<!-- dtg: ... -->` を残します。初期値は無効です。
@@ -39,4 +46,3 @@ npm run build
 ```
 
 `main.js`、`manifest.json`、必要に応じて `styles.css` を Vault の `.obsidian/plugins/obsidian-daily-task-gate/` に配置します。
-

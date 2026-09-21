@@ -1,10 +1,9 @@
 {
   "id": "obsidian-daily-task-gate",
   "name": "Daily Task Gate",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minAppVersion": "1.5.0",
   "description": "Creates daily notes with only the template tasks that match today's conditions.",
   "author": "gutti0",
   "isDesktopOnly": false
 }
-
