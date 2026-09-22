@@ -44,10 +44,6 @@
   white-space: nowrap;
 }
 
-.daily-task-gate-rule-note {
-  color: var(--text-muted);
-}
-
 .daily-task-gate-rule-example {
   overflow-x: auto;
   padding: var(--size-4-3);

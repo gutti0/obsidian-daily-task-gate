@@ -291,10 +291,6 @@ class DailyTaskGateSettingTab extends PluginSettingTab {
       row.createEl("td", { text: reference.description });
     });
 
-    this.containerEl.createEl("p", {
-      cls: "daily-task-gate-rule-note",
-      text: strings.andNote,
-    });
     this.containerEl.createEl("h4", { text: strings.fullExampleHeading });
     this.containerEl.createEl("pre", { cls: "daily-task-gate-rule-example" })
       .createEl("code", { text: strings.fullExample });

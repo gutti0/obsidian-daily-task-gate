@@ -31,7 +31,6 @@ export interface Strings {
     rulesIntroduction: string;
     conditionColumn: string;
     descriptionColumn: string;
-    andNote: string;
     fullExampleHeading: string;
     fullExample: string;
     references: RuleReference[];
@@ -69,7 +68,6 @@ const ENGLISH: Strings = {
     rulesIntroduction: "Add an HTML comment to a task. Separate multiple conditions with semicolons; all conditions must match.",
     conditionColumn: "Condition",
     descriptionColumn: "Meaning",
-    andNote: "Condition names and values are always written in English, regardless of the Obsidian display language.",
     fullExampleHeading: "Complete example",
     fullExample: "- [ ] Take out trash <!-- dtg: weekday=mon,thu -->",
     references: [
@@ -116,7 +114,6 @@ const JAPANESE: Strings = {
     rulesIntroduction: "タスク行へ HTML コメントを付けます。複数条件はセミコロンで区切り、すべての条件に一致した場合だけ表示します。",
     conditionColumn: "条件",
     descriptionColumn: "動作",
-    andNote: "Obsidian の表示言語にかかわらず、条件名と設定値は常に英語で記述します。",
     fullExampleHeading: "タスク全体の例",
     fullExample: "- [ ] ゴミ出し <!-- dtg: weekday=mon,thu -->",
     references: [
