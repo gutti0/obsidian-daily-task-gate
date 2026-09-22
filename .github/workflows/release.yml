@@ -1,0 +1,76 @@
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test and build
+        run: npm run check
+
+      - name: Verify tag and manifest versions
+        shell: bash
+        run: |
+          manifest_version="$(node -p "require('./manifest.json').version")"
+          if [[ "${GITHUB_REF_NAME}" != "${manifest_version}" ]]; then
+            echo "Tag '${GITHUB_REF_NAME}' must match manifest version '${manifest_version}'." >&2
+            exit 1
+          fi
+
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: obsidian-daily-task-gate-${{ github.ref_name }}
+          path: |
+            main.js
+            manifest.json
+            styles.css
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          prerelease=()
+          if [[ "${tag}" == *-* ]]; then
+            prerelease=(--prerelease)
+          fi
+
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release upload "${tag}" main.js manifest.json styles.css --clobber
+          else
+            gh release create "${tag}" \
+              --verify-tag \
+              --title "${tag}" \
+              --generate-notes \
+              "${prerelease[@]}" \
+              main.js manifest.json styles.css

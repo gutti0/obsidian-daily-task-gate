@@ -54,3 +54,11 @@ npm run build
 ```
 
 `main.js`、`manifest.json`、必要に応じて `styles.css` を Vault の `.obsidian/plugins/obsidian-daily-task-gate/` に配置します。
+
+## BRAT からのインストール
+
+1. Obsidian のコミュニティプラグインから BRAT をインストールして有効にします。
+2. コマンドパレットから `BRAT: Add a beta plugin for testing` を実行します。
+3. リポジトリとして `gutti0/obsidian-daily-task-gate` を入力し、最新Releaseを選択します。
+
+BRAT はGitHub Releaseに添付された `main.js`、`manifest.json`、`styles.css` を取得します。Releaseは、`manifest.json` と同じバージョンのタグをプッシュするとGitHub Actionsが自動作成します。
