@@ -74,3 +74,4 @@ jobs:
               --generate-notes \
               "${prerelease[@]}" \
               main.js manifest.json styles.css
+          fi
