@@ -282,15 +282,13 @@ class DailyTaskGateSettingTab extends PluginSettingTab {
     const tableWrapper = this.containerEl.createDiv({ cls: "daily-task-gate-rule-table-wrapper" });
     const table = tableWrapper.createEl("table", { cls: "daily-task-gate-rule-table" });
     const header = table.createEl("thead").createEl("tr");
-    header.createEl("th", { text: strings.syntaxColumn });
+    header.createEl("th", { text: strings.conditionColumn });
     header.createEl("th", { text: strings.descriptionColumn });
-    header.createEl("th", { text: strings.exampleColumn });
     const body = table.createEl("tbody");
     strings.references.forEach((reference) => {
       const row = body.createEl("tr");
-      row.createEl("td").createEl("code", { text: reference.syntax });
+      row.createEl("td").createEl("code", { text: reference.condition });
       row.createEl("td", { text: reference.description });
-      row.createEl("td").createEl("code", { text: reference.example });
     });
 
     this.containerEl.createEl("p", {

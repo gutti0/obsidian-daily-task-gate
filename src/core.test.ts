@@ -163,6 +163,14 @@ describe("task headings", () => {
 describe("until-done", () => {
   const monthly = "- [ ] transfer <!-- dtg: day-until=10; until-done; scope=month -->";
 
+  it("defaults scope to the current month", () => {
+    const task = "- [ ] archive <!-- dtg: until-done -->";
+    const previousMonth = render(task, localDate(2026, 10, 1), "- [x] archive", localDate(2026, 9, 3));
+    const currentMonth = render(task, localDate(2026, 10, 2), "- [x] archive", localDate(2026, 10, 1));
+    expect(previousMonth.content).toBe("- [ ] archive");
+    expect(currentMonth.content).toBe("");
+  });
+
   it("continues while earlier copies are incomplete", () => {
     const result = render(monthly, localDate(2026, 9, 3), "- [ ] transfer", localDate(2026, 9, 2));
     expect(result.content).toBe("- [ ] transfer");

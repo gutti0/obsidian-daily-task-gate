@@ -1,9 +1,8 @@
 import type { GateWarning } from "./core";
 
 export interface RuleReference {
-  syntax: string;
+  condition: string;
   description: string;
-  example: string;
 }
 
 export interface Strings {
@@ -30,9 +29,8 @@ export interface Strings {
     keepCommentsDescription: string;
     rulesHeading: string;
     rulesIntroduction: string;
-    syntaxColumn: string;
+    conditionColumn: string;
     descriptionColumn: string;
-    exampleColumn: string;
     andNote: string;
     fullExampleHeading: string;
     fullExample: string;
@@ -69,21 +67,20 @@ const ENGLISH: Strings = {
     keepCommentsDescription: "Keep <!-- dtg: ... --> comments in created or inserted tasks.",
     rulesHeading: "Rule reference",
     rulesIntroduction: "Add an HTML comment to a task. Separate multiple conditions with semicolons; all conditions must match.",
-    syntaxColumn: "Condition",
+    conditionColumn: "Condition",
     descriptionColumn: "Meaning",
-    exampleColumn: "Example",
     andNote: "Condition names and values are always written in English, regardless of the Obsidian display language.",
     fullExampleHeading: "Complete example",
     fullExample: "- [ ] Take out trash <!-- dtg: weekday=mon,thu -->",
     references: [
-      { syntax: "month-start", description: "Only on the first day of the month.", example: "<!-- dtg: month-start -->" },
-      { syntax: "month-end", description: "Only on the last day of the month.", example: "<!-- dtg: month-end -->" },
-      { syntax: "weekday=...", description: "On the specified weekdays. Values: mon, tue, wed, thu, fri, sat, sun.", example: "<!-- dtg: weekday=mon,thu -->" },
-      { syntax: "nth=...", description: "On the specified occurrence of a weekday. Use together with weekday.", example: "<!-- dtg: weekday=mon; nth=1,3 -->" },
-      { syntax: "day-from=N", description: "From day N of each month, inclusive.", example: "<!-- dtg: day-from=10 -->" },
-      { syntax: "day-until=N", description: "Through day N of each month, inclusive.", example: "<!-- dtg: day-until=10 -->" },
-      { syntax: "until-done", description: "Repeat until a matching task is completed in a past Daily Note.", example: "<!-- dtg: until-done -->" },
-      { syntax: "scope=month|all", description: "Search the current month or all past Daily Notes. The default is month.", example: "<!-- dtg: until-done; scope=all -->" },
+      { condition: "<!-- dtg: month-start -->", description: "Only on the first day of the month." },
+      { condition: "<!-- dtg: month-end -->", description: "Only on the last day of the month." },
+      { condition: "<!-- dtg: weekday=mon,thu -->", description: "On the specified weekdays. Values: mon, tue, wed, thu, fri, sat, sun." },
+      { condition: "<!-- dtg: weekday=mon; nth=1,3 -->", description: "On the specified occurrence of a weekday. Use nth with weekday." },
+      { condition: "<!-- dtg: day-from=10 -->", description: "From day N of each month, inclusive." },
+      { condition: "<!-- dtg: day-until=10 -->", description: "Through day N of each month, inclusive." },
+      { condition: "<!-- dtg: until-done -->", description: "Repeat until a matching task is completed in a past Daily Note. The default scope is month." },
+      { condition: "<!-- dtg: until-done; scope=all -->", description: "Use scope=month for the current month or scope=all for all past Daily Notes." },
     ],
   },
   preview: {
@@ -117,21 +114,20 @@ const JAPANESE: Strings = {
     keepCommentsDescription: "作成または挿入したタスクに <!-- dtg: ... --> コメントを残します。",
     rulesHeading: "ルール記法",
     rulesIntroduction: "タスク行へ HTML コメントを付けます。複数条件はセミコロンで区切り、すべての条件に一致した場合だけ表示します。",
-    syntaxColumn: "条件",
+    conditionColumn: "条件",
     descriptionColumn: "動作",
-    exampleColumn: "記述例",
     andNote: "Obsidian の表示言語にかかわらず、条件名と設定値は常に英語で記述します。",
     fullExampleHeading: "タスク全体の例",
     fullExample: "- [ ] ゴミ出し <!-- dtg: weekday=mon,thu -->",
     references: [
-      { syntax: "month-start", description: "毎月1日だけ表示します。", example: "<!-- dtg: month-start -->" },
-      { syntax: "month-end", description: "毎月の最終日だけ表示します。", example: "<!-- dtg: month-end -->" },
-      { syntax: "weekday=...", description: "指定曜日に表示します。値は mon、tue、wed、thu、fri、sat、sun です。", example: "<!-- dtg: weekday=mon,thu -->" },
-      { syntax: "nth=...", description: "第N曜日に表示します。weekday と一緒に指定します。", example: "<!-- dtg: weekday=mon; nth=1,3 -->" },
-      { syntax: "day-from=N", description: "毎月N日以降に表示します。N日を含みます。", example: "<!-- dtg: day-from=10 -->" },
-      { syntax: "day-until=N", description: "毎月N日まで表示します。N日を含みます。", example: "<!-- dtg: day-until=10 -->" },
-      { syntax: "until-done", description: "過去の Daily Note で同名タスクが完了するまで繰り返します。", example: "<!-- dtg: until-done -->" },
-      { syntax: "scope=month|all", description: "今月または過去全期間を検索します。初期値は month です。", example: "<!-- dtg: until-done; scope=all -->" },
+      { condition: "<!-- dtg: month-start -->", description: "毎月1日だけ表示します。" },
+      { condition: "<!-- dtg: month-end -->", description: "毎月の最終日だけ表示します。" },
+      { condition: "<!-- dtg: weekday=mon,thu -->", description: "指定曜日に表示します。値は mon、tue、wed、thu、fri、sat、sun です。" },
+      { condition: "<!-- dtg: weekday=mon; nth=1,3 -->", description: "第N曜日に表示します。nth は weekday と一緒に指定します。" },
+      { condition: "<!-- dtg: day-from=10 -->", description: "毎月N日以降に表示します。N日を含みます。" },
+      { condition: "<!-- dtg: day-until=10 -->", description: "毎月N日まで表示します。N日を含みます。" },
+      { condition: "<!-- dtg: until-done -->", description: "過去の Daily Note で同名タスクが完了するまで繰り返します。scope の初期値は month です。" },
+      { condition: "<!-- dtg: until-done; scope=all -->", description: "scope=month は今月、scope=all は過去全期間を検索します。" },
     ],
   },
   preview: {

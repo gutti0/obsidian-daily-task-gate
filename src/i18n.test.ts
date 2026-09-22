@@ -23,8 +23,8 @@ describe("localization", () => {
   it("keeps rule names and values in English in both references", () => {
     for (const language of ["ja", "en"]) {
       const references = getStrings(language).settings.references;
-      expect(references.some((reference) => reference.syntax === "weekday=...")).toBe(true);
-      expect(references.some((reference) => reference.example.includes("scope=all"))).toBe(true);
+      expect(references.some((reference) => reference.condition.includes("weekday=mon,thu"))).toBe(true);
+      expect(references.some((reference) => reference.condition.includes("scope=all"))).toBe(true);
     }
   });
 });

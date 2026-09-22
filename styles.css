@@ -40,9 +40,7 @@
 }
 
 .daily-task-gate-rule-table th:first-child,
-.daily-task-gate-rule-table td:first-child,
-.daily-task-gate-rule-table th:last-child,
-.daily-task-gate-rule-table td:last-child {
+.daily-task-gate-rule-table td:first-child {
   white-space: nowrap;
 }
 
